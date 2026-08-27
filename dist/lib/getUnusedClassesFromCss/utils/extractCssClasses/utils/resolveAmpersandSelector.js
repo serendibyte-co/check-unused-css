@@ -1,0 +1,90 @@
+import { clearGlobalSelectors } from './clearGlobalSelectors.js';
+import { findClassNamesInLocalArgument } from './findClassNamesInSelector.js';
+import { parseSelector } from './selectorParser.js';
+const getParentRule = (rule) => {
+    const { parent } = rule;
+    if (parent && parent.type === 'rule') {
+        return parent;
+    }
+    return null;
+};
+/**
+ * Return the last direct class name of a parsed compound (the right-most
+ * `ClassName` in its `items`), ignoring classes that live inside attribute
+ * values or non-`:local` pseudo-class arguments (e.g. `[style*=".foo"]`,
+ * `:not(.fake)`). The CSS-Modules `:local(...)` function form is treated as a
+ * plain local class (issue #97), so `:local(.button)` yields `button` — letting
+ * it act as the parent of SCSS suffix concatenation like `&Black`.
+ */
+const getLastClassNameOfRule = (rule) => {
+    let lastClassName = null;
+    for (const item of rule.items) {
+        if (item.type === 'ClassName') {
+            lastClassName = item.name;
+        }
+        else if (item.type === 'PseudoClass' &&
+            item.name === 'local' &&
+            item.argument &&
+            item.argument.type === 'String') {
+            const localClasses = findClassNamesInLocalArgument(item.argument.value);
+            if (localClasses.length) {
+                lastClassName = localClasses[localClasses.length - 1] ?? lastClassName;
+            }
+        }
+    }
+    return lastClassName;
+};
+/**
+ * Return the rightmost (last) class of a selector's right-most compound, or
+ * `null` if it has none. For SCSS suffix concatenation (`&-faded`), the suffix
+ * joins to the IMMEDIATE parent class — the last class of a compound parent like
+ * `.root.--variant` (→ `--variant`), not the first (`root`).
+ *
+ * Parsing (rather than a raw regex) is required so a `.`-prefixed token inside
+ * an attribute value or pseudo-class argument is not mistaken for the parent
+ * class — e.g. `.item[style*=".foo"]` must resolve to `item`, not `foo`.
+ */
+const getLastClassName = (selector) => {
+    let parsed;
+    try {
+        parsed = parseSelector(clearGlobalSelectors(selector));
+    }
+    catch {
+        return null;
+    }
+    // Use the last selector in a list (`.a, .b` → `.b`), then follow the
+    // descendant/combinator chain to its right-most compound.
+    let rule = parsed.rules.at(-1);
+    if (!rule) {
+        return null;
+    }
+    while (rule.nestedRule) {
+        rule = rule.nestedRule;
+    }
+    return getLastClassNameOfRule(rule);
+};
+export const getParentClassName = (rule) => {
+    const parentRule = getParentRule(rule);
+    if (!parentRule) {
+        return null;
+    }
+    const grandParentClassName = getParentClassName(parentRule);
+    if (grandParentClassName && parentRule.selector.includes('&')) {
+        const resolved = resolveAmpersandSelector(parentRule.selector, grandParentClassName);
+        return getLastClassName(resolved);
+    }
+    return getLastClassName(parentRule.selector);
+};
+/**
+ * A suffix `&`: an `&` directly followed by an identifier char — SCSS
+ * concatenation like `&-horizontal`, `&Black`, `&__element`. Does not match
+ * `&.x`, `& .x`, or `&:hover`. Non-global so `.test()` is stateless; callers
+ * add the `g` flag when replacing.
+ */
+export const SUFFIX_AMPERSAND_REGEX = /&(?=[A-Za-z0-9_-])/;
+export const resolveAmpersandSelector = (selector, parentClassName) => {
+    if (!parentClassName) {
+        return selector;
+    }
+    return selector.replace(new RegExp(SUFFIX_AMPERSAND_REGEX, 'g'), `.${parentClassName}`);
+};

@@ -1,0 +1,81 @@
+import path from 'node:path';
+import { getContentOfFiles } from '../utils/getContentOfFiles.js';
+import { buildValidReferenceSet, DEFAULT_LOCALS_CONVENTION, } from '../utils/localsConvention.js';
+import { parseIgnoreComments } from '../utils/parseIgnoreComments.js';
+import { extractCssClasses } from './getUnusedClassesFromCss/utils/extractCssClasses/index.js';
+import { extractUsedClassesWithLocations } from './getUnusedClassesFromCss/utils/extractUsedClasses.js';
+import { findFilesImportingCssModule } from './getUnusedClassesFromCss/utils/findFilesImportingCssModule/index.js';
+import { extractDynamicClassUsages } from './getUnusedClassesFromCss/utils/findUnusedClasses/utils/extractDynamicClassUsages.js';
+import { detectModulePassedToFunction } from './getUnusedClassesFromCss/utils/passedToFunction/detectModulePassedToFunction.js';
+import { collectPartialClasses } from './getUnusedClassesFromCss/utils/scssImports/index.js';
+export const getNonExistentClassesFromCss = async ({ cssFile, srcDir, localsConvention = DEFAULT_LOCALS_CONVENTION, }) => {
+    const importingFilesData = await findFilesImportingCssModule(cssFile, srcDir);
+    // If no files import this CSS module, we can't have non-existent classes
+    if (importingFilesData.length === 0) {
+        return null;
+    }
+    const cssContent = getContentOfFiles({ files: [cssFile], srcDir });
+    // Classes are real if they are defined in this file OR pulled into it via
+    // `@use`/`@forward`/`@import` (those emit the partial's rules into the
+    // module's compiled CSS), so both sets count as existing (issue #90).
+    // `buildValidReferenceSet` also adds each name's convention-renamed spelling
+    // (e.g. `headerBar` for `.header-bar` under `camelCase`); it returns a Set so
+    // the per-usage lookup below stays O(1).
+    const partialClasses = collectPartialClasses(path.join(srcDir, cssFile));
+    const cssClasses = buildValidReferenceSet([...extractCssClasses(cssContent), ...partialClasses], localsConvention);
+    // If any importer passes the whole module to a function, ignore the module
+    // entirely (matching the unused path), not just that one file.
+    for (const importingFileData of importingFilesData) {
+        const sourceContent = getContentOfFiles({
+            files: [importingFileData.file],
+            srcDir,
+        });
+        const { isFileIgnored } = parseIgnoreComments(sourceContent);
+        if (isFileIgnored) {
+            continue;
+        }
+        if (detectModulePassedToFunction(sourceContent, importingFileData.importName, importingFileData.file)) {
+            return null;
+        }
+    }
+    const nonExistentClasses = [];
+    // Process each importing file separately to get precise location info
+    for (const importingFileData of importingFilesData) {
+        const sourceContent = getContentOfFiles({
+            files: [importingFileData.file],
+            srcDir,
+        });
+        const { isFileIgnored } = parseIgnoreComments(sourceContent);
+        if (isFileIgnored) {
+            continue;
+        }
+        // Skip analysis if dynamic usage is detected
+        if (extractDynamicClassUsages(sourceContent, [importingFileData.importName], '').length > 0) {
+            continue;
+        }
+        const usedClassesWithLocations = extractUsedClassesWithLocations({
+            sourceContent,
+            importNames: [importingFileData.importName],
+            filePath: importingFileData.file,
+        });
+        // Find classes that are used in code but don't exist in CSS
+        for (const usedClass of usedClassesWithLocations) {
+            if (!cssClasses.has(usedClass.className)) {
+                nonExistentClasses.push({
+                    className: usedClass.className,
+                    file: importingFileData.file,
+                    line: usedClass.line,
+                    column: usedClass.column,
+                });
+            }
+        }
+    }
+    if (nonExistentClasses.length === 0) {
+        return null;
+    }
+    return {
+        file: cssFile,
+        nonExistentClasses,
+        status: 'nonExistentClasses',
+    };
+};

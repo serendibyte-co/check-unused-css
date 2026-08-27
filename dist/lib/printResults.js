@@ -1,0 +1,79 @@
+import { COLORS } from '../consts.js';
+import { formatLocationLine } from './printUtils.js';
+export const printResults = (results, noDynamic = false) => {
+    const resultsWithUnusedClasses = results.filter((result) => result.status === 'correct' && result.unusedClasses.length > 0);
+    const resultsWithDynamicUsage = results.filter((result) => result.status === 'withDynamicImports');
+    const notImportedResults = results.filter((result) => result.status === 'notImported');
+    const nonExistentClassResults = results.filter((result) => result.status === 'nonExistentClasses');
+    const ignoredModuleResults = results.filter((result) => result.status === 'ignoredPassedToFunction');
+    if (resultsWithDynamicUsage.length > 0) {
+        if (noDynamic) {
+            console.error(`${COLORS.red}Error: Dynamic class usage detected in ${resultsWithDynamicUsage.length} files.${COLORS.reset}`);
+            console.error(`${COLORS.red}Cannot determine usability when using dynamic class access.${COLORS.reset}\n`);
+            for (const result of resultsWithDynamicUsage) {
+                for (const usage of result.dynamicUsages) {
+                    console.log(formatLocationLine(usage.file, usage.line, usage.column, usage.className, COLORS.red));
+                }
+                console.log('');
+            }
+            console.log('');
+        }
+        else {
+            console.warn(`${COLORS.yellow}Warning: Dynamic class usage detected in ${resultsWithDynamicUsage.length} files.${COLORS.reset}`);
+            console.warn(`${COLORS.yellow}Cannot determine usability when using dynamic class access.${COLORS.reset}\n`);
+            for (const result of resultsWithDynamicUsage) {
+                for (const usage of result.dynamicUsages) {
+                    console.log(formatLocationLine(usage.file, usage.line, usage.column, usage.className, COLORS.yellow));
+                }
+                console.log('');
+            }
+        }
+    }
+    if (ignoredModuleResults.length > 0) {
+        // Modules handed whole to a function can't be analyzed; warn (naming the
+        // file) instead of reporting false positives. --no-dynamic makes it an error.
+        const color = noDynamic ? COLORS.red : COLORS.yellow;
+        const label = noDynamic ? 'Error' : 'Warning';
+        const emit = noDynamic ? console.error : console.warn;
+        emit(`${color}${label}: ${ignoredModuleResults.length} CSS module(s) ignored — the whole module object is passed to a function.${COLORS.reset}`);
+        emit(`${color}Cannot determine class usage when the module object is consumed by a function.${COLORS.reset}\n`);
+        for (const result of ignoredModuleResults) {
+            console.log(`  ${COLORS.cyan}${result.sourceFile}:${result.line}:${result.column}${COLORS.reset} - ` +
+                `${color}\`${result.importName}\` (whole module) passed to a function${COLORS.reset}`);
+            console.log(`  ${COLORS.cyan}module: ${result.file}${COLORS.reset}`);
+            console.log('');
+        }
+    }
+    if (nonExistentClassResults.length > 0) {
+        const totalNonExistentClasses = nonExistentClassResults.reduce((sum, result) => sum + result.nonExistentClasses.length, 0);
+        console.error(`${COLORS.red}Found ${totalNonExistentClasses} classes used in source files but non-existent in CSS:${COLORS.reset}\n`);
+        for (const result of nonExistentClassResults) {
+            for (const usage of result.nonExistentClasses) {
+                console.log(formatLocationLine(usage.file, usage.line, usage.column, usage.className, COLORS.red));
+            }
+            console.log('');
+        }
+    }
+    if (notImportedResults.length > 0) {
+        console.log(`${COLORS.red}Found ${notImportedResults.length} not imported CSS modules:${COLORS.reset}\n`);
+        for (const result of notImportedResults) {
+            console.log(`  ${COLORS.cyan}${result.file}${COLORS.reset}`);
+            console.log('');
+        }
+    }
+    if (resultsWithUnusedClasses.length > 0) {
+        const totalUnusedClasses = resultsWithUnusedClasses.reduce((sum, result) => sum + result.unusedClasses.length, 0);
+        console.error(`${COLORS.red}Found ${totalUnusedClasses} classes defined in CSS but unused in source files:${COLORS.reset}\n`);
+        for (const result of resultsWithUnusedClasses) {
+            for (const unusedClass of result.unusedClasses) {
+                console.log(formatLocationLine(result.file, unusedClass.line, unusedClass.column, unusedClass.className, COLORS.red));
+            }
+            console.log('');
+        }
+        console.log(`${COLORS.cyan}Tip:${COLORS.reset} run ${COLORS.cyan}check-unused-css --remove${COLORS.reset} to delete the safely-removable ones automatically (preview + confirmation before any file is touched).\n`);
+    }
+    else if (notImportedResults.length === 0 &&
+        nonExistentClassResults.length === 0) {
+        console.log(`${COLORS.green}✓ No unused CSS classes found!${COLORS.reset}`);
+    }
+};

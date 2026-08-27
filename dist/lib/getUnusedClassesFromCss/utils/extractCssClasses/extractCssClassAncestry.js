@@ -1,0 +1,49 @@
+import postcssScss from 'postcss-scss';
+import { parseIgnoreComments } from '../../../../utils/parseIgnoreComments.js';
+import { extractClassNamesFromSelector } from './utils/extractClassNamesFromRule.js';
+import { isInsideGlobalScope } from './utils/isInsideGlobalScope.js';
+import { getParentClassName, resolveAmpersandSelector, SUFFIX_AMPERSAND_REGEX, } from './utils/resolveAmpersandSelector.js';
+export const extractCssClassAncestry = (cssContent) => {
+    const { isFileIgnored, ignoredLines } = parseIgnoreComments(cssContent);
+    const ancestry = new Map();
+    if (isFileIgnored) {
+        return ancestry;
+    }
+    const root = postcssScss.parse(cssContent);
+    root.walkRules((rule) => {
+        if (rule.source?.start && ignoredLines.has(rule.source.start.line)) {
+            return;
+        }
+        // A `:global` block makes its children global; they have no local ancestry.
+        if (isInsideGlobalScope(rule)) {
+            return;
+        }
+        // Only suffix-`&` rules (`&-x`, `&Camel`) can produce a concatenation
+        // child. `&.x`, `& .x`, `&:hover`, and selectors without `&` cannot.
+        if (!SUFFIX_AMPERSAND_REGEX.test(rule.selector)) {
+            return;
+        }
+        const parentClassName = getParentClassName(rule);
+        if (!parentClassName) {
+            return;
+        }
+        // Handle each selector in the list separately, so a sibling like
+        // `.buttonLegacy` in `.button { &Black, .buttonLegacy {} }` isn't taken for
+        // a child just because it shares the `button` prefix.
+        for (const segment of rule.selector.split(',')) {
+            if (!SUFFIX_AMPERSAND_REGEX.test(segment)) {
+                continue;
+            }
+            const resolved = resolveAmpersandSelector(segment, parentClassName);
+            for (const className of extractClassNamesFromSelector(resolved)) {
+                // A real child is the parent name plus a suffix (excludes the parent
+                // itself and `&.--modifier` compounds that don't extend it).
+                if (className !== parentClassName &&
+                    className.startsWith(parentClassName)) {
+                    ancestry.set(className, parentClassName);
+                }
+            }
+        }
+    });
+    return ancestry;
+};
