@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { getArgs } from './getArgs.js';
+import { ArgsError, getArgs } from './getArgs.js';
 
 describe('getArgs', () => {
   let originalArgv: string[];
@@ -25,6 +25,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -40,6 +41,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -55,6 +57,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -70,6 +73,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -85,6 +89,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -100,6 +105,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -115,6 +121,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -129,6 +136,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -155,6 +163,18 @@ describe('getArgs', () => {
     expect(() => getArgs()).toThrow('Unknown flag: --help');
   });
 
+  test('malformed-invocation errors are ArgsError instances', () => {
+    for (const argv of [
+      ['--nope'],
+      ['--exclude'],
+      ['--locals-convention', 'kebabCase'],
+      ['a', 'b'],
+    ]) {
+      process.argv = ['node', 'script.js', ...argv];
+      expect(() => getArgs()).toThrow(ArgsError);
+    }
+  });
+
   test('handles numeric argument', () => {
     const numericArg = '123';
     process.argv = ['node', 'script.js', numericArg];
@@ -167,6 +187,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -182,6 +203,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -197,6 +219,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -212,6 +235,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -227,6 +251,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -241,6 +266,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -255,6 +281,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -269,6 +296,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -290,6 +318,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -310,6 +339,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -330,6 +360,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -389,6 +420,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -403,6 +435,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -417,6 +450,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -439,6 +473,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -454,6 +489,7 @@ describe('getArgs', () => {
       noDynamic: true,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -468,6 +504,7 @@ describe('getArgs', () => {
       noDynamic: true,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -488,6 +525,7 @@ describe('getArgs', () => {
       noDynamic: true,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -511,6 +549,7 @@ describe('getArgs', () => {
       noDynamic: true,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -532,6 +571,7 @@ describe('getArgs', () => {
       noDynamic: true,
       mode: 'report',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -547,6 +587,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'remove',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -561,6 +602,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: true,
+      localsConvention: 'asIs',
     });
   });
 
@@ -575,6 +617,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'report',
       yes: true,
+      localsConvention: 'asIs',
     });
   });
 
@@ -589,6 +632,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'remove',
       yes: true,
+      localsConvention: 'asIs',
     });
   });
 
@@ -603,6 +647,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'remove',
       yes: true,
+      localsConvention: 'asIs',
     });
   });
 
@@ -617,6 +662,7 @@ describe('getArgs', () => {
       noDynamic: false,
       mode: 'remove',
       yes: true,
+      localsConvention: 'asIs',
     });
   });
 
@@ -639,6 +685,7 @@ describe('getArgs', () => {
       noDynamic: true,
       mode: 'remove',
       yes: false,
+      localsConvention: 'asIs',
     });
   });
 
@@ -652,5 +699,104 @@ describe('getArgs', () => {
     process.argv = ['node', 'script.js', '--comment'];
 
     expect(() => getArgs()).toThrow('Unknown flag: --comment');
+  });
+
+  // --locals-convention
+  test('defaults localsConvention to asIs when the flag is absent', () => {
+    process.argv = ['node', 'script.js'];
+
+    expect(getArgs().localsConvention).toBe('asIs');
+  });
+
+  test('parses --locals-convention with a space-separated value', () => {
+    process.argv = ['node', 'script.js', '--locals-convention', 'camelCase'];
+
+    expect(getArgs()).toEqual({
+      targetPath: undefined,
+      excludePatterns: undefined,
+      noDynamic: false,
+      mode: 'report',
+      yes: false,
+      localsConvention: 'camelCase',
+    });
+  });
+
+  test('parses --locals-convention with equals syntax', () => {
+    process.argv = ['node', 'script.js', '--locals-convention=dashesOnly'];
+
+    expect(getArgs().localsConvention).toBe('dashesOnly');
+  });
+
+  test('accepts every css-loader convention name', () => {
+    for (const value of [
+      'asIs',
+      'camelCase',
+      'camelCaseOnly',
+      'dashes',
+      'dashesOnly',
+    ] as const) {
+      process.argv = ['node', 'script.js', '--locals-convention', value];
+      expect(getArgs().localsConvention).toBe(value);
+    }
+  });
+
+  test('normalizes css-loader kebab-cased convention aliases', () => {
+    process.argv = ['node', 'script.js', '--locals-convention', 'camel-case'];
+    expect(getArgs().localsConvention).toBe('camelCase');
+
+    process.argv = ['node', 'script.js', '--locals-convention=camel-case-only'];
+    expect(getArgs().localsConvention).toBe('camelCaseOnly');
+  });
+
+  test('combines --locals-convention with a path and other flags', () => {
+    process.argv = [
+      'node',
+      'script.js',
+      'src/components',
+      '--locals-convention',
+      'camelCase',
+      '--no-dynamic',
+    ];
+
+    expect(getArgs()).toEqual({
+      targetPath: 'src/components',
+      excludePatterns: undefined,
+      noDynamic: true,
+      mode: 'report',
+      yes: false,
+      localsConvention: 'camelCase',
+    });
+  });
+
+  test('throws on an unknown --locals-convention value', () => {
+    process.argv = ['node', 'script.js', '--locals-convention', 'kebabCase'];
+
+    expect(() => getArgs()).toThrow(
+      '--locals-convention must be one of: asIs, camelCase, camelCaseOnly, dashes, dashesOnly.'
+    );
+  });
+
+  test('throws when --locals-convention has no value', () => {
+    process.argv = ['node', 'script.js', '--locals-convention'];
+
+    expect(() => getArgs()).toThrow(
+      '--locals-convention flag requires a value argument.'
+    );
+  });
+
+  test('throws when --locals-convention is followed by another flag', () => {
+    process.argv = ['node', 'script.js', '--locals-convention', '--no-dynamic'];
+
+    expect(() => getArgs()).toThrow(
+      '--locals-convention flag requires a value argument.'
+    );
+  });
+
+  test('throws when --locals-convention= has an empty value', () => {
+    process.argv = ['node', 'script.js', '--locals-convention='];
+
+    expect(() => getArgs()).toThrow(
+      '--locals-convention flag requires a value argument.'
+    );
   });
 });

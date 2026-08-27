@@ -19,7 +19,7 @@ import { printResults } from './lib/printResults.js';
 import { printRunSummary } from './lib/printRunSummary.js';
 import type { Args, CssAnalysisResult } from './types.js';
 import { confirmPrompt } from './utils/confirmPrompt.js';
-import { getArgs } from './utils/getArgs.js';
+import { ArgsError, getArgs } from './utils/getArgs.js';
 import { isInteractiveTty } from './utils/isTty.js';
 
 const DEFAULT_TARGET_PATH = 'src';
@@ -99,11 +99,13 @@ const runAnalysis = async (): Promise<AnalysisContext> => {
     const unusedResult = await getUnusedClassesFromCss({
       cssFile: relativeCssFile,
       srcDir,
+      localsConvention: args.localsConvention,
     });
 
     const nonExistentResult = await getNonExistentClassesFromCss({
       cssFile: relativeCssFile,
       srcDir,
+      localsConvention: args.localsConvention,
     });
 
     if (unusedResult) {
@@ -302,7 +304,13 @@ const runCssChecker = async (): Promise<void> => {
       reportMode(ctx);
     }
   } catch (error) {
-    // An uncaught exception here is an internal failure — not the same as
+    // A bad invocation is a user typo, not a crash: message only, exit 2.
+    if (error instanceof ArgsError) {
+      console.error(`${COLORS.red}${error.message}${COLORS.reset}`);
+      process.exit(EXIT_CODES.BAD_ARGS);
+    }
+
+    // Any other uncaught exception is an internal failure — not the same as
     // "analysis found issues." Use a distinct exit code so CI can tell them
     // apart, and include a stack so the bug can be diagnosed.
     console.error(

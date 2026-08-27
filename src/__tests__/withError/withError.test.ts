@@ -199,6 +199,28 @@ describe('Component with errors', () => {
     );
   });
 
+  test('an unknown flag exits BAD_ARGS with just the message, not a stack', () => {
+    const result = runCheckUnusedCss({ extraArgs: ['--not-a-real-flag'] });
+
+    // BAD_ARGS (2) — a malformed invocation is a user typo, not an internal
+    // failure. It must not surface as INTERNAL (5) with a stack trace.
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toMatch(/Unknown flag: --not-a-real-flag/);
+    expect(result.stderr).not.toMatch(/internal error/);
+  });
+
+  test('an invalid --locals-convention value exits BAD_ARGS', () => {
+    const result = runCheckUnusedCss({
+      extraArgs: ['--locals-convention', 'kebabCase'],
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toMatch(
+      /--locals-convention must be one of: asIs, camelCase, camelCaseOnly, dashes, dashesOnly\./
+    );
+    expect(result.stderr).not.toMatch(/internal error/);
+  });
+
   test('reports the offending file path when a .jsx source fails to parse', () => {
     const result = runCheckUnusedCss('src/__tests__/withError/UnparseableJsx');
 

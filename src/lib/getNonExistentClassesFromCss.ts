@@ -4,6 +4,11 @@ import type {
   NonExistentClassUsage,
 } from '../types.js';
 import { getContentOfFiles } from '../utils/getContentOfFiles.js';
+import {
+  buildValidReferenceSet,
+  DEFAULT_LOCALS_CONVENTION,
+  type LocalsConvention,
+} from '../utils/localsConvention.js';
 import { parseIgnoreComments } from '../utils/parseIgnoreComments.js';
 import { extractCssClasses } from './getUnusedClassesFromCss/utils/extractCssClasses/index.js';
 import { extractUsedClassesWithLocations } from './getUnusedClassesFromCss/utils/extractUsedClasses.js';
@@ -15,11 +20,13 @@ import { collectPartialClasses } from './getUnusedClassesFromCss/utils/scssImpor
 type GetNonExistentClassesFromCssParams = {
   cssFile: string;
   srcDir: string;
+  localsConvention?: LocalsConvention;
 };
 
 export const getNonExistentClassesFromCss = async ({
   cssFile,
   srcDir,
+  localsConvention = DEFAULT_LOCALS_CONVENTION,
 }: GetNonExistentClassesFromCssParams): Promise<NonExistentClassResult | null> => {
   const importingFilesData = await findFilesImportingCssModule(cssFile, srcDir);
 
@@ -32,13 +39,15 @@ export const getNonExistentClassesFromCss = async ({
 
   // Classes are real if they are defined in this file OR pulled into it via
   // `@use`/`@forward`/`@import` (those emit the partial's rules into the
-  // module's compiled CSS), so both sets count as existing (issue #90). A Set
-  // keeps the per-usage lookup below O(1).
+  // module's compiled CSS), so both sets count as existing (issue #90).
+  // `buildValidReferenceSet` also adds each name's convention-renamed spelling
+  // (e.g. `headerBar` for `.header-bar` under `camelCase`); it returns a Set so
+  // the per-usage lookup below stays O(1).
   const partialClasses = collectPartialClasses(path.join(srcDir, cssFile));
-  const cssClasses = new Set<string>([
-    ...extractCssClasses(cssContent),
-    ...partialClasses,
-  ]);
+  const cssClasses = buildValidReferenceSet(
+    [...extractCssClasses(cssContent), ...partialClasses],
+    localsConvention
+  );
 
   // If any importer passes the whole module to a function, ignore the module
   // entirely (matching the unused path), not just that one file.

@@ -83,6 +83,35 @@ Exclude patterns support both specific paths and glob syntax:
 
 *Note: Remember to wrap patterns in quotes to prevent shell expansion*
 
+#### CSS Modules naming convention (`--locals-convention`)
+
+`css-loader` (and Vite, via `css.modules.localsConvention`) can rename the locals it exports to JS. Under the popular `camelCase` setting, a class authored in CSS as `.header-bar` is reachable from JS as **both** `styles['header-bar']` and `styles.headerBar` — one class, two spellings.
+
+Tell the tool which convention your build uses so it treats those spellings as the same class. Without this, every kebab-case class referenced by its camelCase local is a double false positive (the `.header-bar` rule looks unused **and** the `styles.headerBar` access looks non-existent):
+
+```bash
+# Match a Vite / css-loader config that sets localsConvention: 'camelCase'
+npx check-unused-css --locals-convention camelCase
+
+# Alternative syntax with equals
+npx check-unused-css --locals-convention=camelCase
+
+# Combine with a custom path and other flags
+npx check-unused-css src/components --locals-convention camelCase --no-dynamic
+```
+
+Accepted values mirror `css-loader`'s own `exportLocalsConvention` option, so the mental model transfers directly:
+
+- `asIs` **(default)** - no conversion; a class is matched only by its exact authored name. Existing behaviour, unchanged.
+- `camelCase` - match the original name **or** its camelCased form (`.header-bar` ↔ `headerBar`).
+- `camelCaseOnly` - match **only** the camelCased form; the original kebab-case string is not a valid reference.
+- `dashes` - like `camelCase`, but only dashes are converted (`-` groups → camel); underscores and other characters are left as-is.
+- `dashesOnly` - only the dash-converted form is a valid reference.
+
+The css-loader kebab-cased spellings (`camel-case`, `camel-case-only`, `dashes-only`, `as-is`) are accepted too and normalised to the names above.
+
+*Known limitation:* when two classes in the same file collapse to the same camelCase local (e.g. `.header-bar` and `.headerBar`), a reference to either one marks both as used, so a genuinely dead sibling won't be reported. This mirrors css-loader itself, where both names export to the same key. Also note that under `dashes`/`dashesOnly` a leading-hyphen class produces a capitalised local (`--foo` → `Foo`), matching css-loader.
+
 #### Strict mode for dynamic class access
 
 By default, the tool shows warnings for dynamic class access but doesn't fail the process. Use the `--no-dynamic` flag to treat dynamic class usage as errors:

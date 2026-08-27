@@ -5,6 +5,11 @@ import type {
   UnusedClassUsage,
 } from '../../types.js';
 import { getContentOfFiles } from '../../utils/getContentOfFiles.js';
+import {
+  DEFAULT_LOCALS_CONVENTION,
+  getLocalNameVariants,
+  type LocalsConvention,
+} from '../../utils/localsConvention.js';
 import { parseIgnoreComments } from '../../utils/parseIgnoreComments.js';
 import {
   applyCoverage,
@@ -26,11 +31,13 @@ import { collectPartialClasses } from './utils/scssImports/index.js';
 type GetUnusedClassesFromCssParams = {
   cssFile: string;
   srcDir: string;
+  localsConvention?: LocalsConvention;
 };
 
 export const getUnusedClassesFromCss = async ({
   cssFile,
   srcDir,
+  localsConvention = DEFAULT_LOCALS_CONVENTION,
 }: GetUnusedClassesFromCssParams): Promise<UnusedClassResult | null> => {
   const cssContent = getContentOfFiles({ files: [cssFile], srcDir });
   const cssClassesWithLocations = extractCssClassesWithLocations(cssContent);
@@ -61,7 +68,12 @@ export const getUnusedClassesFromCss = async ({
   // which is extracted from this file alone (issue #90).
   const partialClasses = collectPartialClasses(path.join(srcDir, cssFile));
 
-  const usedClasses = new Set<string>([...composedClasses, ...partialClasses]);
+  // `usedByName` holds authored names that are used whatever css-loader renames
+  // them to (composes, partials, an ignored importer, coverage). `usedByReference`
+  // holds `styles.foo` / `styles['foo']` spellings, matched to a class only
+  // after folding through the convention below.
+  const usedByName = new Set<string>([...composedClasses, ...partialClasses]);
+  const usedByReference = new Set<string>();
   const allAccesses: ClassAccess[] = [];
 
   for (const importingFileData of importingFilesData) {
@@ -75,7 +87,7 @@ export const getUnusedClassesFromCss = async ({
       // If file is ignored, treat all CSS classes as used from this file
       // This way ignored files don't cause false positives for unused classes
       for (const className of cssClasses) {
-        usedClasses.add(className);
+        usedByName.add(className);
       }
       continue;
     }
@@ -108,7 +120,7 @@ export const getUnusedClassesFromCss = async ({
       filePath: importingFileData.file,
     });
     for (const className of fileUsedClasses) {
-      usedClasses.add(className);
+      usedByReference.add(className);
     }
 
     allAccesses.push(
@@ -125,7 +137,8 @@ export const getUnusedClassesFromCss = async ({
   // even if another file would have left some class uncovered.
   const { coveredClasses, coversAll, coversAllAccesses } = applyCoverage(
     cssClasses,
-    allAccesses
+    allAccesses,
+    localsConvention
   );
 
   if (coversAll) {
@@ -146,7 +159,21 @@ export const getUnusedClassesFromCss = async ({
   }
 
   for (const className of coveredClasses) {
-    usedClasses.add(className);
+    usedByName.add(className);
+  }
+
+  // Fold the references into authored-name space: a class is used if source
+  // names any spelling it is exported under (for `asIs`, just the authored
+  // name). `usedClasses` is then a single namespace, as `rescueUsedAncestors`
+  // and the final comparison both expect.
+  const usedClasses = new Set<string>(usedByName);
+  for (const className of cssClasses) {
+    const referenced = getLocalNameVariants(className, localsConvention).some(
+      (variant) => usedByReference.has(variant)
+    );
+    if (referenced) {
+      usedClasses.add(className);
+    }
   }
 
   // A used child keeps its ampersand-family parent from looking unused. Runs

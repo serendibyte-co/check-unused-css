@@ -32,7 +32,7 @@ export type ClassAccess = {
 
 /** Result of aggregating every access site of a CSS module across all files. */
 export type CoverageOutcome = {
-  /** Class names covered statically or by a pattern, across the whole module. */
+  /** Authored class names covered statically or by a pattern (convention-resolved). */
   coveredClasses: Set<string>;
   /** True if any access anywhere covers all classes (absorbing). */
   coversAll: boolean;

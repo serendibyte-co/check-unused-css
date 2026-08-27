@@ -12,6 +12,8 @@ export type RunOptions = {
   targetPath?: string;
   excludePatterns?: string[];
   noDynamic?: boolean;
+  /** Passed through as `--locals-convention <value>`. */
+  localsConvention?: string;
   /** Additional raw flags appended as-is (e.g. `['--remove', '--yes']`). */
   extraArgs?: string[];
   /**
@@ -48,6 +50,9 @@ export const runCheckUnusedCss = (
     }
   }
   if (options.noDynamic) args.push('--no-dynamic');
+  if (options.localsConvention) {
+    args.push('--locals-convention', options.localsConvention);
+  }
   if (options.extraArgs) args.push(...options.extraArgs);
 
   const stdinMode = options.stdin ?? 'tty';

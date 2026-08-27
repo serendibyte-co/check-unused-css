@@ -1,3 +1,5 @@
+import type { LocalsConvention } from './utils/localsConvention.js';
+
 export type UnusedClassUsage = {
   className: string;
   line: number;
@@ -66,4 +68,5 @@ export type Args = {
   noDynamic: boolean;
   mode: 'report' | 'remove';
   yes: boolean;
+  localsConvention: LocalsConvention;
 };
