@@ -98,4 +98,55 @@ describe('applyCoverage', () => {
     expect([...out.coveredClasses].sort()).toEqual(['btn-x', 'btn-x-y']);
     expect(out.coveredClasses.has('nav-z')).toBe(false);
   });
+
+  describe('localsConvention-aware matching', () => {
+    test('a camelCase literal key covers its kebab-authored class', () => {
+      const out = applyCoverage(
+        ['icon-home', 'icon-away'],
+        [literals('iconHome')],
+        'camelCase'
+      );
+      expect([...out.coveredClasses]).toEqual(['icon-home']);
+    });
+
+    test('under camelCaseOnly a kebab literal key covers nothing (the local is renamed)', () => {
+      const out = applyCoverage(
+        ['icon-home'],
+        [literals('icon-home')],
+        'camelCaseOnly'
+      );
+      expect(out.coveredClasses.size).toBe(0);
+    });
+
+    test('a hyphen-free template pattern covers kebab classes via their renamed locals', () => {
+      // styles[`icon${name}`] -> /^icon.*$/ ; under camelCaseOnly the locals
+      // are `iconHome` / `iconAway`, which the regex still matches.
+      const out = applyCoverage(
+        ['icon-home', 'icon-away', 'button'],
+        [pattern('^icon.*$')],
+        'camelCaseOnly'
+      );
+      expect([...out.coveredClasses].sort()).toEqual([
+        'icon-away',
+        'icon-home',
+      ]);
+      expect(out.coveredClasses.has('button')).toBe(false);
+    });
+
+    test('a kebab template pattern covers nothing under camelCaseOnly (broken at runtime)', () => {
+      // styles[`icon-${x}`] -> /^icon-.*$/ ; the only local is `iconHome`, so
+      // nothing matches and `.icon-home` is (correctly) left uncovered.
+      const out = applyCoverage(
+        ['icon-home'],
+        [pattern('^icon-.*$')],
+        'camelCaseOnly'
+      );
+      expect(out.coveredClasses.size).toBe(0);
+    });
+
+    test('defaults to asIs when the convention is omitted', () => {
+      const out = applyCoverage(['icon-home'], [literals('iconHome')]);
+      expect(out.coveredClasses.size).toBe(0);
+    });
+  });
 });

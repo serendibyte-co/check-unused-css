@@ -1,0 +1,11 @@
+.card {
+  padding: 8px;
+}
+
+.cardTitle {
+  font-weight: bold;
+}
+
+.cardBody {
+  color: #333;
+}

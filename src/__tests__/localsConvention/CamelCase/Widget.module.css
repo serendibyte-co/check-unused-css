@@ -1,0 +1,11 @@
+.header-bar {
+  color: red;
+}
+
+.nav-list {
+  display: flex;
+}
+
+.footer-note {
+  font-size: 12px;
+}
